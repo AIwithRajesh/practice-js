@@ -26,3 +26,40 @@ file.addEventListener("change", (e) => {
 
   xhr.send(formData);
 });
+
+const handleFileFetch = () => {
+  fetch("http://localhost:8080/download")
+    .then((response) => {
+      const contentLength = response.headers.get("content-length");
+      if (!contentLength) throw new Error("content length not provided");
+
+      const totalLength = parseInt(contentLength, 10);
+      let loaded = 0;
+      const reader = response.body.getReader();
+      let chunks = [];
+
+      function read() {
+        return reader.read().then(({ done, value }) => {
+          if (done) {
+            return new Blob(chunks);
+          }
+          chunks.push(value);
+          loaded += value.length;
+          const percent = (loaded / totalLength) * 100;
+          progressbar.value = percent;
+
+          return read();
+        });
+      }
+      return read();
+    })
+    .then((blob) => {
+      // Download complete → use the file (e.g., show link)
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "downloaded_file.pdf";
+      a.click();
+    })
+    .catch((err) => console.error(err));
+};
